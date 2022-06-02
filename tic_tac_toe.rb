@@ -8,7 +8,7 @@ end
 
 # Top level Board Class Definition
 class Board
-  attr_reader :positions
+  attr_reader :positions, :empty_positions
 
   def initialize
     @positions = {
@@ -22,6 +22,7 @@ class Board
       'c2' => ' ',
       'c3' => ' '
     }
+    @empty_positions = @positions.keys
   end
 
   def insert(position, symbol)
@@ -29,11 +30,12 @@ class Board
       puts 'Invalid position'
       return false
     end
-    unless fetch(position) == ' '
+    unless empty_positions.include?(position)
       puts 'Enter empty position'
       return false
     end
     @positions[position] = symbol
+    @empty_positions.delete(position)
     draw
     true
   end
@@ -136,7 +138,11 @@ class Game
   end
 
   def same_elements?(array)
-    array[0] != ' ' && array[0] == array[1] && array[1] == array[2]
+    array[0] != ' ' && array.uniq.length == 1
+  end
+
+  def empty_positions
+    @board.empty_positions
   end
 end
 
@@ -162,18 +168,41 @@ class Player
   end
 end
 
+# Bot subclass of Player
+class Bot < Player
+  def place
+    empty_positions = @game.empty_positions
+    3.times do
+      print '.'
+      sleep(0.3)
+    end
+    random_position = empty_positions.sample
+    puts random_position
+    @game.insert(self, random_position)
+  end
+end
+
+# Help Text
+puts "Tic-Tac-Toe:
+Conquer a row, a column or a diagonal to win.
+Input: a,b,c are rows and 1,2,3 are columns. Example: b3 for inserting at second row third column"
+
 # Flow Control
 my_game = Game.new
 p1 = Player.new
-p2 = Player.new('Player2')
+p2 = Bot.new('RandomBot')
 p1.join(my_game)
 p2.join(my_game)
 player = p1
 loop do
   print "#{player.name}>> "
-  input = gets.chomp
-  break if input == 'end'
-  next unless player.place(input)
+  if player.instance_of?(Bot)
+    player.place
+  else
+    input = gets.chomp
+    break if input == 'end'
+    next unless player.place(input)
+  end
 
   break if my_game.check_endgame
 
