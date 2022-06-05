@@ -11,6 +11,10 @@ class Board
   attr_reader :positions, :empty_positions
 
   def initialize
+    reset_board
+  end
+
+  def reset_board
     @positions = {
       'a1' => ' ',
       'a2' => ' ',
@@ -46,9 +50,7 @@ class Board
 
   def draw
     print fetch('a1'), '|', fetch('a2'), '|', fetch('a3')
-    # print "\n", '------'
     print "\n", fetch('b1'), '|', fetch('b2'), '|', fetch('b3')
-    # print "\n", '------'
     print "\n", fetch('c1'), '|', fetch('c2'), '|', fetch('c3')
     print "\n", "\n"
   end
@@ -125,16 +127,14 @@ class Game
         return true
       end
     end
-    false
-  end
 
-  def declare_winner(symbol)
-    @players.each do |player, player_symbol|
-      if player_symbol == symbol
-        puts "#{player.name} wins"
-        break
-      end
+    # check for draw
+    if empty_positions.empty?
+      declare_draw
+      return true
     end
+
+    false
   end
 
   def same_elements?(array)
@@ -143,6 +143,25 @@ class Game
 
   def empty_positions
     @board.empty_positions
+  end
+
+  def reset
+    @board.reset_board
+  end
+
+  private
+
+  def declare_winner(symbol)
+    @players.each do |player, player_symbol|
+      if player_symbol == symbol
+        puts "#{player.name} WINS"
+        break
+      end
+    end
+  end
+
+  def declare_draw
+    puts 'DRAW GAME'
   end
 end
 
@@ -182,32 +201,80 @@ class Bot < Player
   end
 end
 
-# Help Text
-puts "Tic-Tac-Toe:
-Conquer a row, a column or a diagonal to win.
-Input: a,b,c are rows and 1,2,3 are columns. Example: b3 for inserting at second row third column"
+# Main Game Class For Flow Control
+class TicTacToe
+  def initialize
+    help
+    @game = Game.new
 
-# Flow Control
-my_game = Game.new
-p1 = Player.new
-p2 = Bot.new('RandomBot')
-p1.join(my_game)
-p2.join(my_game)
-player = p1
-loop do
-  print "#{player.name}>> "
-  if player.instance_of?(Bot)
-    player.place
-  else
-    input = gets.chomp
-    break if input == 'end'
-    next unless player.place(input)
+    puts 'Enter name of player 1: '
+    @p1 = Player.new(gets.chomp)
+    puts "Enter name of player 2(Try 'bot'): "
+    p2_name = gets.chomp
+    @p2 = if p2_name.downcase == 'bot'
+            Bot.new(p2_name)
+          else
+            Player.new(p2_name)
+          end
+
+    @p1.join(@game)
+    @p2.join(@game)
   end
 
-  break if my_game.check_endgame
+  def toggle_player
+    @player = @player == @p1 ? @p2 : @p1
+  end
 
-  player = player == p1 ? p2 : p1
+  def reset
+    @game.reset
+  end
+
+  def start
+    @player = [@p1, @p2].sample
+    loop do
+      print "#{@player.name}>> "
+
+      case do_move
+      when 'end'
+        break
+      when 'repeat'
+        next
+      end
+
+      break if @game.check_endgame
+
+      toggle_player
+    end
+  end
+
+  def help
+    puts "Tic-Tac-Toe:
+    Conquer a row, a column or a diagonal to win.
+    Input: a,b,c are rows and 1,2,3 are columns. Example: enter b3 for inserting at second row third column
+    Enter 'end' anytime to quit the game in between"
+  end
+
+  private
+
+  def do_move
+    # if player is bot, just do a random move
+    if @player.instance_of?(Bot)
+      @player.place
+    else
+      input = gets.chomp
+      return 'end' if input == 'end'
+      return 'repeat' unless @player.place(input)
+    end
+  end
 end
 
-# require('pry-byebug'); binding.pry
+tic_tac_toe = TicTacToe.new
+loop do
+  tic_tac_toe.start
+  print 'Play again(y/n): '
+  break unless gets.chomp.downcase == 'y'
+
+  tic_tac_toe.reset
+end
+
 puts 'Thank you for playing!'
