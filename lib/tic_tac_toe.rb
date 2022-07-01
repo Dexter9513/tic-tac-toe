@@ -8,7 +8,7 @@ end
 
 # Top level Board Class Definition
 class Board
-  attr_reader :positions, :empty_positions
+  attr_reader :positions
 
   def initialize
     reset_board
@@ -26,7 +26,6 @@ class Board
       'c2' => ' ',
       'c3' => ' '
     }
-    @empty_positions = @positions.keys
   end
 
   def insert(position, symbol)
@@ -39,13 +38,19 @@ class Board
       return false
     end
     @positions[position] = symbol
-    @empty_positions.delete(position)
-    draw
     true
   end
 
   def fetch(position)
     @positions[position]
+  end
+
+  def empty_positions
+    empty = []
+    positions.each do |key, value|
+      empty.push(key) if value == ' '
+    end
+    empty
   end
 
   def draw
@@ -59,9 +64,11 @@ end
 # Top level Game Class Definition
 class Game
   include Symbols
+
+  attr_reader :players, :board
+
   def initialize
     @players = {}
-    @moves = []
     @board = Board.new
   end
 
@@ -81,8 +88,7 @@ class Game
   end
 
   def insert(player, position)
-    @moves.append(position)
-    @board.insert(position, symbol(player))
+    board.insert(position, symbol(player))
   end
 
   def check_endgame
@@ -104,7 +110,7 @@ class Game
       values = []
       'a'.upto('c') do |row|
         position = row + column
-        values << @board.fetch(position)
+        values << board.fetch(position)
       end
       if same_elements?(values)
         declare_winner(values[0])
@@ -120,7 +126,7 @@ class Game
     diagonals.each do |diagonal|
       values = []
       diagonal.each do |position|
-        values << @board.fetch(position)
+        values << board.fetch(position)
       end
       if same_elements?(values)
         declare_winner(values[0])
@@ -142,14 +148,16 @@ class Game
   end
 
   def empty_positions
-    @board.empty_positions
+    board.empty_positions
   end
 
   def reset
-    @board.reset_board
+    board.reset_board
   end
 
-  private
+  def draw_board
+    board.draw
+  end
 
   def declare_winner(symbol)
     @players.each do |player, player_symbol|
@@ -182,7 +190,7 @@ class Player
     @game.insert(self, position)
   end
 
-  def my_symbol
+  def symbol
     @game.symbol(self)
   end
 end
@@ -203,10 +211,15 @@ end
 
 # Main Game Class For Flow Control
 class TicTacToe
-  def initialize
-    help
-    @game = Game.new
+  attr_reader :game, :p1, :p2
+  attr_accessor :player
 
+  def initialize
+    @game = Game.new
+  end
+  
+  def add_players
+    help
     puts 'Enter name of player 1: '
     @p1 = Player.new(gets.chomp)
     puts "Enter name of player 2(Try 'bot'): "
@@ -217,22 +230,23 @@ class TicTacToe
             Player.new(p2_name)
           end
 
-    @p1.join(@game)
-    @p2.join(@game)
+    p1.join(game)
+    p2.join(game)
   end
 
   def toggle_player
-    @player = @player == @p1 ? @p2 : @p1
+    @player = player == p1 ? p2 : p1
   end
 
   def reset
-    @game.reset
+    game.reset
   end
 
   def start
-    @player = [@p1, @p2].sample
+    add_players unless p1
+    @player = [p1, p2].sample
     loop do
-      print "#{@player.name}>> "
+      print "#{player.name}>> "
 
       case do_move
       when 'end'
@@ -241,7 +255,9 @@ class TicTacToe
         next
       end
 
-      break if @game.check_endgame
+      game.draw_board
+
+      break if game.check_endgame
 
       toggle_player
     end
@@ -258,23 +274,12 @@ class TicTacToe
 
   def do_move
     # if player is bot, just do a random move
-    if @player.instance_of?(Bot)
-      @player.place
+    if player.instance_of?(Bot)
+      player.place
     else
       input = gets.chomp
       return 'end' if input == 'end'
-      return 'repeat' unless @player.place(input)
+      return 'repeat' unless player.place(input)
     end
   end
 end
-
-tic_tac_toe = TicTacToe.new
-loop do
-  tic_tac_toe.start
-  print 'Play again(y/n): '
-  break unless gets.chomp.downcase == 'y'
-
-  tic_tac_toe.reset
-end
-
-puts 'Thank you for playing!'
